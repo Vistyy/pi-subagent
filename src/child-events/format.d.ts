@@ -1,0 +1,10 @@
+export const MAX_INLINE_ERROR_PREVIEW_CHARS: number;
+export function getSeenMessageSignatures(result: any): Set<string>;
+export function stableStringify(value: unknown): string;
+export function truncateTail(text: string, maxChars: number): string;
+export function truncateInline(text: string, maxChars: number): string;
+export function formatCount(n: number): string;
+export function stringifyPreview(value: unknown, maxChars: number): string;
+export function formatToolCallPreview(toolName: string, args: unknown): string;
+export function extractTextFromContent(content: unknown): string;
+export function extractResultText(toolResult: unknown): string;
