@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { AgentConfig } from "../agents.js";
-import { getForkProgressText, processPiJsonLine } from "../child-events/index.js";
+import { getChildProgressText, processPiJsonLine } from "../child-events/index.js";
 import type { SubagentConfig } from "../config.js";
 import { emptyUsage, normalizeCompletedResult, type SubagentDetails, type SubagentResult } from "../core/types.js";
 import { buildChildEnv } from "./env.js";
@@ -119,7 +119,7 @@ export async function runSubagent(opts: RunSubagentOptions): Promise<SubagentRes
   const emitUpdate = () => {
     enrichContextWindow();
     onUpdate?.({
-      content: [{ type: "text", text: getForkProgressText(result) }],
+      content: [{ type: "text", text: getChildProgressText(result) }],
       details: makeDetails([result]),
     });
   };

@@ -59,7 +59,7 @@ function formatActivityProgressList(result) {
   return lines.join("\n").trim();
 }
 
-export function getForkProgressText(result) {
+export function getChildProgressText(result) {
   const retryProgress = formatRetryProgress(result?.retry);
   if (retryProgress) return retryProgress;
 

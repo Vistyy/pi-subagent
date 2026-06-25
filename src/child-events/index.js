@@ -268,4 +268,4 @@ export function processPiJsonLine(line, result) {
 }
 
 export { getFinalAssistantText, getResultSummaryText } from "./text.js";
-export { getForkProgressText } from "./progress.js";
+export { getChildProgressText } from "./progress.js";

@@ -1,6 +1,6 @@
 {
   "name": "pi-subagent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pi package for constrained named subagents.",
   "private": true,
   "type": "module",
@@ -36,9 +36,9 @@
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
-    "@types/node": "^24.12.4",
+    "@types/node": "^25.9.4",
     "typebox": "*",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }
 }
