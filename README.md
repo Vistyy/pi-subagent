@@ -4,23 +4,27 @@ Pi package for constrained named subagents.
 
 It registers a `subagent` tool that only runs defined identities.
 
-Identities can come from:
+The package is a runner and safety layer.
+It does not load bundled identities.
 
-1. bundled identities in this package:
+## Identity locations
 
-   ```text
-   agents/*.md
-   ```
+User identities live here:
 
-2. optional user overrides or additions:
+```text
+~/.pi/agent/agents/*.md
+```
 
-   ```text
-   ~/.pi/agent/agents/*.md
-   ```
+Project identities live here:
 
-User identities override bundled identities with the same `name`.
+```text
+.pi/agents/*.md
+```
 
-The tool does not support ad hoc system prompts, generic agents, or project-local agents.
+Project identities load only when the project is trusted.
+Trusted project identities override user identities with the same `name`.
+
+The tool does not support ad hoc system prompts or generic agents.
 
 ## Install locally
 
@@ -33,7 +37,7 @@ Local installs are stored in `~/.pi/agent/settings.json` and loaded from this ch
 ## Install from git
 
 ```bash
-pi install git:github.com/Vistyy/pi-subagent@v0.1.0
+pi install git:github.com/Vistyy/pi-subagent@v0.2.0
 ```
 
 ## Configure child processes
@@ -76,7 +80,7 @@ Relative extension paths resolve from the settings file directory.
 
 `environment` overlays environment variables for child Pi processes.
 
-## Add a local identity
+## Add a user identity
 
 Create a Markdown file under:
 
@@ -102,8 +106,23 @@ The body is the subagent system prompt.
 
 `thinking` is optional and supports `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`.
 
-## Bundled identity
+## Add a project identity
+
+Create the same kind of Markdown file under:
 
 ```text
-agents/interface-designer.md
+.pi/agents/
 ```
+
+Project identities are repo-controlled prompt material.
+They are ignored until the project is trusted.
+
+## Examples
+
+Example identities live under:
+
+```text
+examples/agents/
+```
+
+They are documentation only and are not loaded by the extension.

@@ -1,6 +1,6 @@
 {
   "name": "pi-subagent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pi package for constrained named subagents.",
   "private": true,
   "type": "module",
@@ -17,8 +17,8 @@
   },
   "files": [
     "index.ts",
-    "agents/",
     "src/",
+    "examples/",
     "README.md",
     "LICENSE"
   ],

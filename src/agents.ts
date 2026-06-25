@@ -1,9 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
-import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 
-export type AgentSource = "bundled" | "user";
+export type AgentSource = "user" | "project";
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export interface AgentConfig {
@@ -19,13 +18,16 @@ export interface AgentConfig {
 
 export interface AgentDiscoveryResult {
   agents: AgentConfig[];
-  bundledAgentsDir: string;
   userAgentsDir: string;
+  projectAgentsDir: string;
+  projectTrusted: boolean;
 }
 
 export interface AgentDiscoveryOptions {
-  bundledAgentsDir?: string;
+  cwd?: string;
   userAgentsDir?: string;
+  projectAgentsDir?: string;
+  projectTrusted?: boolean;
 }
 
 const NAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
@@ -45,13 +47,12 @@ function parseThinking(value: unknown): ThinkingLevel | undefined {
   return THINKING_LEVELS.has(trimmed) ? trimmed : undefined;
 }
 
-export function getBundledAgentsDir(): string {
-  const sourceDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(sourceDir, "..", "agents");
-}
-
 export function getUserAgentsDir(): string {
   return path.join(getAgentDir(), "agents");
+}
+
+export function getProjectAgentsDir(cwd: string): string {
+  return path.join(cwd, CONFIG_DIR_NAME, "agents");
 }
 
 export function loadAgentsFromDir(dir: string, source: AgentSource): AgentConfig[] {
@@ -104,22 +105,27 @@ export function loadAgentsFromDir(dir: string, source: AgentSource): AgentConfig
 }
 
 export function discoverAgents(options: AgentDiscoveryOptions = {}): AgentDiscoveryResult {
-  const bundledAgentsDir = options.bundledAgentsDir ?? getBundledAgentsDir();
+  const cwd = options.cwd ?? process.cwd();
   const userAgentsDir = options.userAgentsDir ?? getUserAgentsDir();
+  const projectAgentsDir = options.projectAgentsDir ?? getProjectAgentsDir(cwd);
+  const projectTrusted = options.projectTrusted ?? false;
   const byName = new Map<string, AgentConfig>();
-
-  for (const agent of loadAgentsFromDir(bundledAgentsDir, "bundled")) {
-    byName.set(agent.name, agent);
-  }
 
   for (const agent of loadAgentsFromDir(userAgentsDir, "user")) {
     byName.set(agent.name, agent);
   }
 
+  if (projectTrusted) {
+    for (const agent of loadAgentsFromDir(projectAgentsDir, "project")) {
+      byName.set(agent.name, agent);
+    }
+  }
+
   return {
     agents: Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name)),
-    bundledAgentsDir,
     userAgentsDir,
+    projectAgentsDir,
+    projectTrusted,
   };
 }
 

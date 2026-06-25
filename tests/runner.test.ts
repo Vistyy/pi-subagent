@@ -32,7 +32,7 @@ function agent(): AgentConfig {
     thinking: "medium",
     systemPrompt: "Design one interface.",
     filePath: "/tmp/interface-designer.md",
-    source: "bundled",
+    source: "user",
   };
 }
 
@@ -149,7 +149,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
       cwd: dir,
       agent: agent(),
       task: "Design a seam.",
-      makeDetails: (results) => ({ mode: "single", agentDirs: { bundled: dir, user: dir }, results }),
+      makeDetails: (results) => ({ mode: "single", agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
       onUpdate: (partial) => {
         const text = partial.content.find((part) => part.type === "text")?.text;
         if (text) updates.push(text);
@@ -202,7 +202,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
         environment: { FOO: "bar" },
         offline: false,
       },
-      makeDetails: (results) => ({ mode: "single", agentDirs: { bundled: dir, user: dir }, results }),
+      makeDetails: (results) => ({ mode: "single", agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
     });
 
     const captured = JSON.parse(fs.readFileSync(argFile, "utf8")) as {
@@ -223,7 +223,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
       cwd: dir,
       agent: agent(),
       task: "Design a seam.",
-      makeDetails: (results) => ({ mode: "single", agentDirs: { bundled: dir, user: dir }, results }),
+      makeDetails: (results) => ({ mode: "single", agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
     });
 
     expect(result.exitCode).toBe(1);

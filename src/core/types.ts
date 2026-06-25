@@ -63,8 +63,9 @@ export interface SubagentResult {
 export interface SubagentDetails {
   mode: "invalid" | "single" | "parallel" | "chain";
   agentDirs: {
-    bundled: string;
     user: string;
+    project: string;
+    projectTrusted: boolean;
   };
   results: SubagentResult[];
 }

@@ -13,6 +13,7 @@ function makeTempDir(): string {
 }
 
 function writeAgent(dir: string, fileName: string, content: string) {
+  fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, fileName), content, "utf8");
 }
 
@@ -40,7 +41,7 @@ Design exactly one option.
 `,
     );
 
-    expect(loadAgentsFromDir(dir, "bundled")).toEqual([
+    expect(loadAgentsFromDir(dir, "user")).toEqual([
       {
         name: "interface-designer",
         description: "Designs one interface option.",
@@ -49,7 +50,7 @@ Design exactly one option.
         thinking: "medium",
         systemPrompt: "Design exactly one option.",
         filePath: path.join(dir, "interface-designer.md"),
-        source: "bundled",
+        source: "user",
       },
     ]);
   });
@@ -68,7 +69,7 @@ No tool list.
 `,
     );
 
-    expect(loadAgentsFromDir(dir, "bundled")).toEqual([]);
+    expect(loadAgentsFromDir(dir, "user")).toEqual([]);
   });
 
   it("rejects invalid identity names", () => {
@@ -86,35 +87,64 @@ Bad identity.
 `,
     );
 
-    expect(loadAgentsFromDir(dir, "bundled")).toEqual([]);
+    expect(loadAgentsFromDir(dir, "user")).toEqual([]);
   });
 });
 
 describe("discoverAgents", () => {
-  it("loads bundled identities and user overrides", () => {
-    const bundledDir = makeTempDir();
-    const userDir = makeTempDir();
-
-    writeAgent(
-      bundledDir,
-      "interface-designer.md",
-      `---
-name: interface-designer
-description: Bundled identity.
-tools: read
----
-
-Bundled prompt.
-`,
-    );
+  it("loads user identities without reading untrusted project identities", () => {
+    const cwd = makeTempDir();
+    const userDir = path.join(makeTempDir(), "agents");
+    const projectDir = path.join(cwd, ".pi", "agents");
 
     writeAgent(
       userDir,
       "interface-designer.md",
       `---
 name: interface-designer
-description: User override.
+description: User identity.
+tools: read
+---
+
+User prompt.
+`,
+    );
+
+    writeAgent(
+      projectDir,
+      "interface-designer.md",
+      `---
+name: interface-designer
+description: Project override.
 tools: read, grep
+---
+
+Project prompt.
+`,
+    );
+
+    const result = discoverAgents({ cwd, userAgentsDir: userDir, projectAgentsDir: projectDir, projectTrusted: false });
+
+    expect(result.userAgentsDir).toBe(userDir);
+    expect(result.projectAgentsDir).toBe(projectDir);
+    expect(result.projectTrusted).toBe(false);
+    expect(result.agents.map((agent) => [agent.name, agent.source, agent.description])).toEqual([
+      ["interface-designer", "user", "User identity."],
+    ]);
+  });
+
+  it("lets trusted project identities override user identities", () => {
+    const cwd = makeTempDir();
+    const userDir = path.join(makeTempDir(), "agents");
+    const projectDir = path.join(cwd, ".pi", "agents");
+
+    writeAgent(
+      userDir,
+      "interface-designer.md",
+      `---
+name: interface-designer
+description: User identity.
+tools: read
 ---
 
 User prompt.
@@ -134,12 +164,23 @@ Review prompt.
 `,
     );
 
-    const result = discoverAgents({ bundledAgentsDir: bundledDir, userAgentsDir: userDir });
+    writeAgent(
+      projectDir,
+      "interface-designer.md",
+      `---
+name: interface-designer
+description: Project override.
+tools: read, grep
+---
 
-    expect(result.bundledAgentsDir).toBe(bundledDir);
-    expect(result.userAgentsDir).toBe(userDir);
+Project prompt.
+`,
+    );
+
+    const result = discoverAgents({ cwd, userAgentsDir: userDir, projectAgentsDir: projectDir, projectTrusted: true });
+
     expect(result.agents.map((agent) => [agent.name, agent.source, agent.description])).toEqual([
-      ["interface-designer", "user", "User override."],
+      ["interface-designer", "project", "Project override."],
       ["reviewer", "user", "User addition."],
     ]);
   });

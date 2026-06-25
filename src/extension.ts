@@ -56,8 +56,8 @@ function textResult(
 
 function availableIdentitiesMessage(agentDirs: AgentDirs, agents: AgentConfig[]): string {
   return [
-    `Bundled identities: ${agentDirs.bundled}`,
-    `User overrides/additions: ${agentDirs.user}`,
+    `User identities: ${agentDirs.user}`,
+    `Project identities: ${agentDirs.project} (${agentDirs.projectTrusted ? "trusted" : "ignored until project is trusted"})`,
     `Available identities: ${formatAgentList(agents)}.`,
   ].join("\n");
 }
@@ -334,12 +334,12 @@ export function registerDefinedSubagents(pi: ExtensionAPI) {
     name: "subagent",
     label: "Subagent",
     description: [
-      "Run only pre-defined subagent identities bundled with this extension or defined in ~/.pi/agent/agents/*.md.",
+      "Run only pre-defined subagent identities from ~/.pi/agent/agents/*.md or trusted project .pi/agents/*.md.",
       "Use for isolated context and independent analysis.",
-      "User identities can override bundled identities by name.",
-      "No ad hoc system prompts, generic agents, or project-local agents are supported by this tool.",
+      "Trusted project identities override user identities by name.",
+      "No ad hoc system prompts or generic agents are supported by this tool.",
       "Child tools and extensions can be configured under the pi-subagent settings key.",
-      "Modes: single (agent + task), parallel (tasks array), or chain (sequential with {previous})."
+      "Modes: single (agent + task), parallel (tasks array), or chain (sequential with {previous}).",
     ].join(" "),
     executionMode: "parallel",
     parameters: SubagentParamsSchema,
@@ -347,8 +347,9 @@ export function registerDefinedSubagents(pi: ExtensionAPI) {
     renderResult: renderSubagentResult,
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
-      const { agents, bundledAgentsDir, userAgentsDir } = discoverAgents();
-      const agentDirs = { bundled: bundledAgentsDir, user: userAgentsDir };
+      const projectTrusted = ctx.isProjectTrusted();
+      const { agents, userAgentsDir, projectAgentsDir } = discoverAgents({ cwd: ctx.cwd, projectTrusted });
+      const agentDirs = { user: userAgentsDir, project: projectAgentsDir, projectTrusted };
       const config = loadConfig(ctx.cwd);
 
       if (getModeCount(params) !== 1) {
