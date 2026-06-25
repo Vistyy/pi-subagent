@@ -37,7 +37,7 @@ Local installs are stored in `~/.pi/agent/settings.json` and loaded from this ch
 ## Install from git
 
 ```bash
-pi install git:github.com/Vistyy/pi-subagent@v0.2.1
+pi install git:github.com/Vistyy/pi-subagent@v0.2.2
 ```
 
 ## Configure child processes
