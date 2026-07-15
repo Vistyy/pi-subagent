@@ -8,7 +8,7 @@ import { PI_SUBAGENT_CHILD_ENV } from "./src/runner/env.js";
 const FORK_COST_STATUS_KEY = "fork-cost";
 
 function updateForkCostStatus(ctx: ExtensionContext): void {
-  if (!loadConfig(ctx.cwd).fork.costFooter) {
+  if (!loadConfig(ctx.cwd, ctx.isProjectTrusted()).fork.costFooter) {
     ctx.ui.setStatus(FORK_COST_STATUS_KEY, undefined);
     return;
   }

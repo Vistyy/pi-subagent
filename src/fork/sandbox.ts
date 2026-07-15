@@ -215,7 +215,7 @@ export function buildSandboxedCommand(
 }
 
 export default function (pi: ExtensionAPI): void {
-  pi.on("tool_call", async (event) => {
+  pi.on("tool_call", async (event, ctx) => {
     if (event.toolName === "edit" || event.toolName === "write") {
       return {
         block: true,
@@ -225,7 +225,7 @@ export default function (pi: ExtensionAPI): void {
 
     if (event.toolName === "bash") {
       const command = typeof event.input?.command === "string" ? event.input.command : "";
-      const config = runtimeSandboxConfig(loadConfig(process.cwd()).fork.sandbox);
+      const config = runtimeSandboxConfig(loadConfig(ctx.cwd, ctx.isProjectTrusted()).fork.sandbox);
       event.input.command = buildSandboxedCommand(command, config);
     }
 

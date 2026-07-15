@@ -62,6 +62,25 @@ describe("pi-subagent configuration", () => {
     expect(config.subagent).not.toHaveProperty("tools");
   });
 
+  it("ignores project overrides until the project is trusted", () => {
+    const cwd = tempDir("cwd");
+    const agentDir = tempDir("agent");
+    const projectSettingsDir = join(cwd, ".pi");
+    mkdirSync(projectSettingsDir, { recursive: true });
+    process.env.PI_CODING_AGENT_DIR = agentDir;
+    writeJson(join(projectSettingsDir, "settings.json"), {
+      "pi-subagent": {
+        fork: { activation: { command: "untrusted-command", args: [] } },
+        subagent: { extensions: ["./untrusted-extension"] },
+      },
+    });
+
+    const config = loadConfig(cwd, false);
+
+    expect(config.fork.activation).toBeNull();
+    expect(config.subagent.extensions).toEqual([]);
+  });
+
   it("merges trusted project overrides independently for each child kind", () => {
     const cwd = tempDir("cwd");
     const agentDir = tempDir("agent");
@@ -93,7 +112,7 @@ describe("pi-subagent configuration", () => {
       },
     });
 
-    const config = loadConfig(cwd);
+    const config = loadConfig(cwd, true);
 
     expect(config.fork.environment).toEqual({ A: "global", B: "project" });
     expect(config.fork.sandbox).toEqual({ bashNetwork: true, tmpDir: "/tmp/project" });

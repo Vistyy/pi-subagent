@@ -74,6 +74,7 @@ describe("fork tool execution", () => {
 
     await execute("call-1", { task: "investigate" }, undefined, undefined, {
       cwd: "/tmp/project",
+      isProjectTrusted: () => false,
       modelRegistry: { find: vi.fn() },
       sessionManager: { getHeader: () => ({ type: "header" }), buildSessionContext: () => ({ messages: [] }) },
     });

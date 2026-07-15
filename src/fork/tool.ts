@@ -135,7 +135,7 @@ export function registerForkTool(pi: ExtensionAPI): void {
     renderResult: renderForkResult,
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
-      const config = loadConfig(ctx.cwd).fork;
+      const config = loadConfig(ctx.cwd, ctx.isProjectTrusted()).fork;
       const effort = resolveEffortState(params.effort, config);
       const result = await runFork({
         cwd: ctx.cwd,

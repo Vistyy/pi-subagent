@@ -310,13 +310,15 @@ function readNamespacedConfig(settingsPath: string, baseDir: string): ParsedConf
   }
 }
 
-export function loadConfig(cwd: string): PiSubagentConfig {
+export function loadConfig(cwd: string, projectTrusted = false): PiSubagentConfig {
   const agentDir = getAgentDir();
   const globalPath = path.join(agentDir, "settings.json");
   const projectSettingsDir = path.join(cwd, CONFIG_DIR_NAME);
   const projectPath = path.join(projectSettingsDir, "settings.json");
   const globalConfig = readNamespacedConfig(globalPath, agentDir);
-  const projectConfig = readNamespacedConfig(projectPath, projectSettingsDir);
+  const projectConfig = projectTrusted
+    ? readNamespacedConfig(projectPath, projectSettingsDir)
+    : { subagent: {}, fork: {} };
 
   const subagent: SubagentConfig = {
     ...DEFAULT_SUBAGENT_CONFIG,

@@ -117,7 +117,7 @@ export function registerDefinedSubagents(pi: ExtensionAPI): void {
       const agent = findAgent(agents, params.agent);
       if (!agent) return textResult(unknownAgentMessage(params.agent, agents), agentDirs, [], true);
 
-      const config = loadConfig(ctx.cwd).subagent;
+      const config = loadConfig(ctx.cwd, projectTrusted).subagent;
       const result = await runSubagent({
         cwd: ctx.cwd,
         agent,
