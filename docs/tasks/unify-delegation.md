@@ -1,6 +1,6 @@
 # Unify Fork and named subagents in pi-subagent
 
-Status: In progress
+Status: Done
 
 Baseline: `4ba759a8330c575616e0e515bbe38b301f518c45`
 
@@ -58,3 +58,17 @@ pi --no-session --no-extensions -e /home/syzom/projects/pi-extensions/pi-subagen
 ```
 
 The authenticated smoke may be replaced by a deterministic extension registration smoke when provider access is unavailable.
+
+## Completion evidence
+
+Implementation commits: `aa2800f`, `fec57ec`
+
+- `pnpm test`: 15 files and 64 tests passed.
+- `pnpm typecheck`: passed.
+- Fresh Pi registration smoke returned `fork, subagent`.
+- Authenticated Fork smoke returned `pi-subagent`.
+- Authenticated Subagent smoke returned `pi-subagent`.
+- Global settings install only `pi-subagent` for delegation and set `pi-subagent.fork.defaultEffort` to `fast`.
+- Standalone `pi-fork` and `pi-delegation` directories were removed.
+- Spec review: `APPROVED`.
+- Standards review: `APPROVED`.
