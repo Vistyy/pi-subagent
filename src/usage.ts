@@ -1,3 +1,6 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ChildResult } from "./core/types.js";
+
 export const PI_USAGE_RECORDED = "pi.usage.recorded";
 
 export type UsageTotals = {
@@ -28,7 +31,7 @@ function nonNegativeNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
-export function normalizeUsage(value: unknown): UsageTotals {
+function normalizeUsage(value: unknown): UsageTotals {
   const usage = isRecord(value) ? value : {};
   const cost = isRecord(usage.cost) ? nonNegativeNumber(usage.cost.total) : nonNegativeNumber(usage.cost);
   const input = nonNegativeNumber(usage.input);
@@ -45,7 +48,7 @@ export function normalizeUsage(value: unknown): UsageTotals {
   };
 }
 
-export function buildUsageRecordedData(
+function buildUsageRecordedData(
   args: Omit<UsageRecordedData, "schemaVersion" | "source" | "usage"> & { usage: unknown },
 ): UsageRecordedData {
   return {
@@ -58,4 +61,18 @@ export function buildUsageRecordedData(
     ...(args.model ? { model: args.model } : {}),
     usage: normalizeUsage(args.usage),
   };
+}
+
+export function recordChildUsage(
+  pi: ExtensionAPI,
+  result: ChildResult,
+  metadata: Omit<UsageRecordedData, "schemaVersion" | "source" | "usage" | "model">,
+): void {
+  const usage = normalizeUsage(result.usage);
+  if (usage.totalTokens === 0 && usage.cost === 0) return;
+  pi.appendEntry(PI_USAGE_RECORDED, buildUsageRecordedData({
+    ...metadata,
+    model: { provider: result.provider, id: result.model },
+    usage,
+  }));
 }

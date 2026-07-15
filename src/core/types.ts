@@ -51,6 +51,8 @@ export interface ChildResult {
   messages: Message[];
   stderr: string;
   usage: UsageStats;
+  startedAt?: number;
+  durationMs?: number;
   provider?: string;
   model?: string;
   stopReason?: string;
@@ -66,14 +68,11 @@ export interface SubagentResult extends ChildResult {
   agentSource: AgentSource | "unknown";
 }
 
-export interface SubagentDetails {
-  agentDirs: {
-    user: string;
-    project: string;
-    projectTrusted: boolean;
-  };
-  results: SubagentResult[];
+export interface ChildDetails<TResult extends ChildResult> {
+  results: TResult[];
 }
+
+export type SubagentDetails = ChildDetails<SubagentResult>;
 
 export type ForkEffort = "fast" | "balanced" | "deep";
 export type ForkEffortSource = "tool" | "default";
@@ -95,9 +94,7 @@ export interface ForkResult extends ChildResult {
   effort: ForkEffortState;
 }
 
-export interface ForkDetails {
-  results: ForkResult[];
-}
+export type ForkDetails = ChildDetails<ForkResult>;
 
 export function emptyUsage(): UsageStats {
   return {

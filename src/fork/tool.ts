@@ -1,10 +1,11 @@
 import { StringEnum, Type } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { buildUsageRecordedData, PI_USAGE_RECORDED } from "../usage.js";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { recordChildUsage } from "../usage.js";
 import { EFFORT_LEVELS, loadConfig, type ForkConfig } from "../config.js";
 import { type ForkDetails, type ForkEffort, type ForkEffortSource, type ForkEffortState, type ForkResult, isResultError } from "../core/types.js";
 import { getResultSummaryText } from "../child-events/index.js";
 import { PI_SUBAGENT_CHILD_ENV } from "../runner/env.js";
+import { resolveModelContextWindow } from "../runner/index.js";
 import { runFork } from "./runner/index.js";
 import { writeForkSessionSnapshotJsonl } from "./session-snapshot.js";
 import { renderForkCall, renderForkResult } from "../ui/render.js";
@@ -41,24 +42,6 @@ function makeDetails(results: ForkResult[]): ForkDetails {
   return { results };
 }
 
-function recordForkUsage(pi: ExtensionAPI, result: ForkResult): void {
-  pi.appendEntry(PI_USAGE_RECORDED, buildUsageRecordedData({
-    extension: "fork",
-    agent: "child-agent",
-    operation: "fork",
-    tags: result.effort?.selected ? { effort: result.effort.selected } : undefined,
-    model: { provider: result.provider, id: result.model },
-    usage: {
-      input: result.usage.input,
-      output: result.usage.output,
-      cacheRead: result.usage.cacheRead,
-      cacheWrite: result.usage.cacheWrite,
-      totalTokens: result.usage.input + result.usage.output + result.usage.cacheRead + result.usage.cacheWrite,
-      cost: result.usage.cost,
-    },
-  }));
-}
-
 function resolveEffortState(
   requestedEffort: unknown,
   config: ForkConfig,
@@ -85,39 +68,6 @@ function formatResultContent(result: ForkResult, isError: boolean): string {
   const summary = getResultSummaryText(result);
   if (isError) return `${warning}Fork ${result.stopReason || "failed"}: ${summary}`;
   return `${warning}${summary}`;
-}
-
-export function resolveModelContextWindow(
-  modelRegistry: ExtensionContext["modelRegistry"],
-  provider?: string,
-  model?: string,
-): number | undefined {
-  const trimmedProvider = provider?.trim();
-  const trimmedModel = model?.trim();
-  if (!trimmedModel) return undefined;
-
-  const attempts: Array<[string, string]> = [];
-  if (trimmedProvider) {
-    attempts.push([trimmedProvider, trimmedModel]);
-    if (trimmedModel.startsWith(`${trimmedProvider}/`)) {
-      attempts.push([trimmedProvider, trimmedModel.slice(trimmedProvider.length + 1)]);
-    }
-  } else {
-    const slashIndex = trimmedModel.indexOf("/");
-    if (slashIndex > 0 && slashIndex < trimmedModel.length - 1) {
-      attempts.push([trimmedModel.slice(0, slashIndex), trimmedModel.slice(slashIndex + 1)]);
-    }
-  }
-
-  for (const [attemptProvider, attemptModel] of attempts) {
-    const found = modelRegistry.find(attemptProvider, attemptModel);
-    const contextWindow = found?.contextWindow;
-    if (typeof contextWindow === "number" && Number.isFinite(contextWindow) && contextWindow > 0) {
-      return contextWindow;
-    }
-  }
-
-  return undefined;
 }
 
 export function registerForkTool(pi: ExtensionAPI): void {
@@ -149,7 +99,12 @@ export function registerForkTool(pi: ExtensionAPI): void {
         resolveContextWindow: (provider, model) => resolveModelContextWindow(ctx.modelRegistry, provider, model),
       });
 
-      recordForkUsage(pi, result);
+      recordChildUsage(pi, result, {
+        extension: "fork",
+        agent: "child-agent",
+        operation: "fork",
+        tags: { effort: result.effort.selected },
+      });
 
       if (isResultError(result)) {
         return {

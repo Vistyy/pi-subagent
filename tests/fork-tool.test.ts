@@ -15,7 +15,6 @@ vi.mock("../src/config.js", async (importOriginal) => {
         tools: null,
         offline: true,
         sandbox: { bashNetwork: false, tmpDir: "/tmp" },
-        costFooter: true,
         defaultEffort: "balanced",
       },
       subagent: { extensions: [], environment: {}, offline: true },

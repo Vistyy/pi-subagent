@@ -150,7 +150,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
       agent: agent(),
       task: "Design a seam.",
       config: { extensions: [], environment: {}, offline: true },
-      makeDetails: (results) => ({ agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
+      makeDetails: (results) => ({ results }),
       onUpdate: (partial) => {
         const text = partial.content.find((part) => part.type === "text")?.text;
         if (text) updates.push(text);
@@ -158,6 +158,9 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
     });
 
     expect(result.exitCode).toBe(0);
+    expect(result.startedAt).toEqual(expect.any(Number));
+    expect(result.durationMs).toEqual(expect.any(Number));
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
     expect(result.provider).toBe("openai-codex");
     expect(result.model).toBe("gpt-5.4-mini");
     expect(result.usage).toMatchObject({ input: 10, output: 5, cacheRead: 2, cacheWrite: 1, cost: 0.0123, turns: 1 });
@@ -203,7 +206,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
         environment: { FOO: "bar" },
         offline: false,
       },
-      makeDetails: (results) => ({ agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
+      makeDetails: (results) => ({ results }),
     });
 
     const captured = JSON.parse(fs.readFileSync(argFile, "utf8")) as {
@@ -225,7 +228,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
       agent: agent(),
       task: "Design a seam.",
       config: { extensions: [], environment: {}, offline: true },
-      makeDetails: (results) => ({ agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
+      makeDetails: (results) => ({ results }),
     });
 
     expect(result.exitCode).toBe(1);

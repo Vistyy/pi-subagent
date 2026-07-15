@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { processPiJsonLine } from "../child-events/index.js";
 import { getChildProgressText } from "../child-events/progress.js";
 import {
@@ -16,6 +16,36 @@ const isWindows = process.platform === "win32";
 const SIGKILL_TIMEOUT_MS = 5000;
 
 export type ContextWindowResolver = (provider?: string, model?: string) => number | undefined;
+
+export function resolveModelContextWindow(
+  modelRegistry: ExtensionContext["modelRegistry"],
+  provider?: string,
+  model?: string,
+): number | undefined {
+  const trimmedProvider = provider?.trim();
+  const trimmedModel = model?.trim();
+  if (!trimmedModel) return undefined;
+
+  const attempts: Array<[string, string]> = [];
+  if (trimmedProvider) {
+    attempts.push([trimmedProvider, trimmedModel]);
+    if (trimmedModel.startsWith(`${trimmedProvider}/`)) {
+      attempts.push([trimmedProvider, trimmedModel.slice(trimmedProvider.length + 1)]);
+    }
+  } else {
+    const slashIndex = trimmedModel.indexOf("/");
+    if (slashIndex > 0 && slashIndex < trimmedModel.length - 1) {
+      attempts.push([trimmedModel.slice(0, slashIndex), trimmedModel.slice(slashIndex + 1)]);
+    }
+  }
+
+  for (const [attemptProvider, attemptModel] of attempts) {
+    const found = modelRegistry.find(attemptProvider, attemptModel);
+    const contextWindow = found?.contextWindow;
+    if (typeof contextWindow === "number" && Number.isFinite(contextWindow) && contextWindow > 0) return contextWindow;
+  }
+  return undefined;
+}
 
 export interface ChildActivation {
   command: string;
@@ -99,6 +129,14 @@ export async function runChild<TResult extends ChildResult, TDetails>(
     resolveContextWindow,
   } = options;
 
+  const startedAt = Date.now();
+  result.startedAt = startedAt;
+  result.durationMs = 0;
+
+  const updateDuration = () => {
+    result.durationMs = Math.max(0, Date.now() - startedAt);
+  };
+
   const enrichContextWindow = () => {
     if (result.usage.contextWindow || !resolveContextWindow) return;
     const contextWindow = resolveContextWindow(result.provider, result.model);
@@ -108,6 +146,7 @@ export async function runChild<TResult extends ChildResult, TDetails>(
   };
 
   const emitUpdate = () => {
+    updateDuration();
     enrichContextWindow();
     onUpdate?.({
       content: [{ type: "text", text: getChildProgressText(result) }],
@@ -116,6 +155,7 @@ export async function runChild<TResult extends ChildResult, TDetails>(
   };
 
   const failBeforeSpawn = (message: string): TResult => {
+    updateDuration();
     result.exitCode = signal?.aborted ? 130 : 1;
     result.stderr = message;
     result.stopReason = signal?.aborted ? "aborted" : "error";
@@ -239,6 +279,7 @@ export async function runChild<TResult extends ChildResult, TDetails>(
     });
 
     result.exitCode = exitCode;
+    updateDuration();
     enrichContextWindow();
     return normalizeCompletedResult(result, wasAborted, kind);
   } finally {

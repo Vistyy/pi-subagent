@@ -113,7 +113,6 @@ Use one `pi-subagent` namespace with separate Fork and Subagent policies.
         "bashNetwork": false,
         "tmpDir": "/tmp"
       },
-      "costFooter": true,
       "defaultEffort": "balanced",
       "effortProfiles": {
         "fast": {

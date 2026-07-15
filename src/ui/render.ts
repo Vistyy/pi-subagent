@@ -1,12 +1,10 @@
-import { getMarkdownTheme, keyHint } from "@earendil-works/pi-coding-agent";
+import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { getFinalAssistantText } from "../child-events/index.js";
-import { type ChildResult, type ForkResult, type SubagentResult, isResultError, isResultSuccess } from "../core/types.js";
+import { type ChildResult, type SubagentResult, isResultError, isResultSuccess } from "../core/types.js";
 
-const COLLAPSED_ACTIVITY_COUNT = 8;
-const COLLAPSED_OUTPUT_LINES = 3;
 const MAX_TASK_PREVIEW_CHARS = 72;
-const MAX_TEXT_PREVIEW_CHARS = 280;
+const MAX_TEXT_PREVIEW_CHARS = 160;
 const MAX_ERROR_PREVIEW_CHARS = 1200;
 
 function truncate(text: string, maxChars: number): string {
@@ -18,8 +16,8 @@ function taskPreview(task: unknown): string {
   return truncate(task.replace(/\s+/g, " ").trim(), MAX_TASK_PREVIEW_CHARS);
 }
 
-function textPreview(text: string, maxChars = MAX_TEXT_PREVIEW_CHARS): string {
-  return truncate(text.trim().split(/\r?\n/).slice(0, COLLAPSED_OUTPUT_LINES).join("\n"), maxChars);
+function singleLinePreview(text: string, maxChars = MAX_TEXT_PREVIEW_CHARS): string {
+  return truncate(text.replace(/\s+/g, " ").trim(), maxChars);
 }
 
 function fmtCount(value: number): string {
@@ -28,6 +26,17 @@ function fmtCount(value: number): string {
   if (value < 10_000) return `${(value / 1000).toFixed(1)}k`;
   if (value < 1_000_000) return `${Math.round(value / 1000)}k`;
   return `${(value / 1_000_000).toFixed(1)}M`;
+}
+
+function fmtDuration(milliseconds: number): string {
+  const seconds = Math.max(0, Math.round(milliseconds / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
 function fmtUsage(result: ChildResult): string {
@@ -48,7 +57,13 @@ function fmtUsage(result: ChildResult): string {
   if (provider && model) parts.push(`(${provider}) ${model}`);
   else if (provider) parts.push(`(${provider})`);
   else if (model) parts.push(model);
-  return parts.join(" ");
+
+  const elapsed = result.exitCode === -1 && result.startedAt
+    ? Math.max(result.durationMs ?? 0, Date.now() - result.startedAt)
+    : result.durationMs;
+  const duration = elapsed === undefined ? "" : fmtDuration(elapsed);
+  if (duration && parts.length > 0) return `${duration} · ${parts.join(" ")}`;
+  return duration || parts.join(" ");
 }
 
 function getPrimaryResult(toolResult: any): ChildResult | undefined {
@@ -90,11 +105,18 @@ function activityLine(activity: any, fg: (color: any, text: string) => string): 
   return `${icon} ${fg(activity.status === "error" ? "error" : "toolOutput", label)}${fg("error", error)}`;
 }
 
-function activityText(result: ChildResult, fg: (color: any, text: string) => string, expanded: boolean): string {
+function activityText(
+  result: ChildResult,
+  fg: (color: any, text: string) => string,
+  limit?: number,
+): string {
   const activities = Array.isArray(result.activities) ? result.activities : [];
-  const visible = expanded ? activities : activities.slice(-COLLAPSED_ACTIVITY_COUNT);
+  const visible = limit ? activities.slice(-limit) : activities;
   const total = Math.max(result.activityCount ?? 0, activities.length);
-  const lines = total > visible.length ? [fg("muted", `... ${total - visible.length} earlier activities`)] : [];
+  const skipped = Math.max(0, total - visible.length);
+  const lines = skipped > 0
+    ? [fg("muted", `… ${skipped} earlier activit${skipped === 1 ? "y" : "ies"}`)]
+    : [];
   for (const activity of visible) {
     const line = activityLine(activity, fg);
     if (line) lines.push(line);
@@ -105,7 +127,9 @@ function activityText(result: ChildResult, fg: (color: any, text: string) => str
 function resultTitle(result: ChildResult): string {
   const subagent = result as Partial<SubagentResult>;
   if (!subagent.agent) return "fork";
-  return `${subagent.agent}${subagent.agentSource ? ` (${subagent.agentSource})` : ""}`;
+  return subagent.agentSource
+    ? `${subagent.agent} (${subagent.agentSource})`
+    : subagent.agent;
 }
 
 function addSection(container: Container, title: string, child: Text | Markdown, fg: (color: any, text: string) => string): void {
@@ -121,12 +145,13 @@ function renderResult(toolResult: any, expanded: boolean, theme: any): Container
   const fg = theme.fg.bind(theme);
   const icon = statusIcon(result, fg);
   const label = status(result);
-  const title = resultTitle(result);
   const finalOutput = getFinalAssistantText(result.messages);
-  const activities = activityText(result, fg, expanded);
-  const usage = fmtUsage(result);
+  const error = result.errorMessage?.trim() || result.stderr?.trim();
 
   if (expanded) {
+    const title = resultTitle(result);
+    const activities = activityText(result, fg);
+    const usage = fmtUsage(result);
     const container = new Container();
     container.addChild(new Spacer(1));
     container.addChild(new Text(`${icon} ${fg("toolTitle", theme.bold(title))} ${fg("muted", label)}`, 0, 0));
@@ -134,7 +159,6 @@ function renderResult(toolResult: any, expanded: boolean, theme: any): Container
     if (activities) addSection(container, "--- Activity ---", new Text(activities, 0, 0), fg);
     if (finalOutput) addSection(container, "--- Output ---", new Markdown(finalOutput.trim(), 0, 0, getMarkdownTheme()), fg);
     else if (label !== "running") addSection(container, "--- Output ---", new Text(fg("muted", "(no final response)"), 0, 0), fg);
-    const error = result.errorMessage?.trim() || result.stderr?.trim();
     if (label === "failed" && error) addSection(container, "--- Error ---", new Text(fg("error", truncate(error, MAX_ERROR_PREVIEW_CHARS)), 0, 0), fg);
     if (usage) {
       container.addChild(new Spacer(1));
@@ -143,17 +167,15 @@ function renderResult(toolResult: any, expanded: boolean, theme: any): Container
     return container;
   }
 
-  let text = `${icon} ${fg("toolTitle", theme.bold(title))} ${fg("muted", label)}`;
+  const activities = activityText(result, fg, 3);
+  const usage = fmtUsage(result);
+  let text = `${icon} ${fg("muted", label)}`;
   if (activities) text += `\n${activities}`;
-  else if (label === "running") text += `\n${fg("muted", "(running...)")}`;
-  else if (finalOutput) text += `\n${fg("toolOutput", textPreview(finalOutput))}`;
-  else text += `\n${fg("muted", "(no final response)")}`;
-  const error = result.errorMessage?.trim() || result.stderr?.trim();
-  if (label === "failed" && error) text += `\n${fg("error", textPreview(error))}`;
+  else if (label === "running") text += `\n${fg("muted", "running...")}`;
+  else if (finalOutput) text += `\n${fg("toolOutput", singleLinePreview(finalOutput))}`;
+  else text += `\n${fg("muted", "no final response")}`;
+  if (label === "failed" && error) text += `\n${fg("error", singleLinePreview(error))}`;
   if (usage) text += `\n${fg("dim", usage)}`;
-  if (finalOutput || result.exitCode !== -1 || (result.activityCount ?? 0) > COLLAPSED_ACTIVITY_COUNT) {
-    text += `\n${fg("muted", `(${keyHint("app.tools.expand", "to expand")})`)}`;
-  }
   return new Text(text, 0, 0);
 }
 

@@ -64,9 +64,6 @@ export interface ForkConfig {
   /** Sandbox policy used by the optional sandbox extension. */
   sandbox: ForkSandboxConfig;
 
-  /** Show aggregate fork cost in the footer. */
-  costFooter: boolean;
-
   /** Effort used when a fork call omits effort. */
   defaultEffort: ForkEffort;
 
@@ -97,7 +94,6 @@ export const DEFAULT_FORK_CONFIG: ForkConfig = {
   tools: null,
   offline: true,
   sandbox: DEFAULT_SANDBOX_CONFIG,
-  costFooter: true,
   defaultEffort: "balanced",
 };
 
@@ -300,7 +296,6 @@ function readNamespacedConfig(settingsPath: string, baseDir: string): ParsedConf
     if (activation !== undefined) fork.activation = activation;
     if (typeof forkRaw.offline === "boolean") fork.offline = forkRaw.offline;
     if (sandbox !== undefined) fork.sandbox = sandbox;
-    if (typeof forkRaw.costFooter === "boolean") fork.costFooter = forkRaw.costFooter;
     if (isEffort(forkRaw.defaultEffort)) fork.defaultEffort = forkRaw.defaultEffort;
     if (effortProfiles !== undefined) fork.effortProfiles = effortProfiles;
 
