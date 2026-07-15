@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AgentConfig } from "../src/agents.js";
-import { buildPiArgs, runSubagent } from "../src/runner/index.js";
+import { buildSubagentArgs, runSubagent } from "../src/subagent-runner.js";
 
 const tempDirs: string[] = [];
 const originalCommand = process.env.PI_SUBAGENT_PI_COMMAND;
@@ -49,9 +49,9 @@ afterEach(() => {
   }
 });
 
-describe("buildPiArgs", () => {
+describe("buildSubagentArgs", () => {
   it("uses identity tools and disables child extensions by default", () => {
-    expect(buildPiArgs(agent(), "Design a seam.", "/tmp/prompt.md")).toEqual([
+    expect(buildSubagentArgs(agent(), "Design a seam.", "/tmp/prompt.md", { extensions: [], environment: {}, offline: true })).toEqual([
       "--mode",
       "json",
       "-p",
@@ -73,7 +73,7 @@ describe("buildPiArgs", () => {
 
   it("uses configured tools and extensions when provided", () => {
     expect(
-      buildPiArgs(agent(), "Design a seam.", undefined, {
+      buildSubagentArgs(agent(), "Design a seam.", undefined, {
         extensions: ["/tmp/child-extension.ts"],
         environment: {},
         tools: "bash,read",
@@ -101,7 +101,7 @@ describe("buildPiArgs", () => {
 
   it("lets child Pi use normal tools and extensions when configured as null", () => {
     expect(
-      buildPiArgs(agent(), "Design a seam.", undefined, {
+      buildSubagentArgs(agent(), "Design a seam.", undefined, {
         extensions: null,
         environment: {},
         tools: null,
@@ -149,7 +149,8 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
       cwd: dir,
       agent: agent(),
       task: "Design a seam.",
-      makeDetails: (results) => ({ mode: "single", agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
+      config: { extensions: [], environment: {}, offline: true },
+      makeDetails: (results) => ({ agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
       onUpdate: (partial) => {
         const text = partial.content.find((part) => part.type === "text")?.text;
         if (text) updates.push(text);
@@ -202,7 +203,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
         environment: { FOO: "bar" },
         offline: false,
       },
-      makeDetails: (results) => ({ mode: "single", agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
+      makeDetails: (results) => ({ agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
     });
 
     const captured = JSON.parse(fs.readFileSync(argFile, "utf8")) as {
@@ -223,7 +224,8 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
       cwd: dir,
       agent: agent(),
       task: "Design a seam.",
-      makeDetails: (results) => ({ mode: "single", agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
+      config: { extensions: [], environment: {}, offline: true },
+      makeDetails: (results) => ({ agentDirs: { user: dir, project: dir, projectTrusted: false }, results }),
     });
 
     expect(result.exitCode).toBe(1);

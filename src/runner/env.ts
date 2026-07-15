@@ -1,4 +1,9 @@
+import type { ChildKind } from "../core/types.js";
+
 export const PI_SUBAGENT_CHILD_ENV = "PI_SUBAGENT_CHILD";
+export const PI_SUBAGENT_CHILD_KIND_ENV = "PI_SUBAGENT_CHILD_KIND";
+export const PI_SUBAGENT_FORK_SANDBOX_HOST_TMPDIR_ENV = "PI_SUBAGENT_FORK_SANDBOX_HOST_TMPDIR";
+export const PI_SUBAGENT_FORK_SANDBOX_TMPDIR_ENV = "PI_SUBAGENT_FORK_SANDBOX_TMPDIR";
 const PI_OFFLINE_ENV = "PI_OFFLINE";
 
 function defineEnvValue(env: NodeJS.ProcessEnv, key: string, value: string | undefined): void {
@@ -36,16 +41,14 @@ export function buildChildEnv(
   parentEnv: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
   offline = true,
+  kind: ChildKind = "subagent",
 ): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const [key, value] of Object.entries(parentEnv)) {
-    defineEnvValue(env, key, value);
-  }
-  for (const [key, value] of Object.entries(environment)) {
-    setEnvValue(env, key, value, platform);
-  }
+  for (const [key, value] of Object.entries(parentEnv)) defineEnvValue(env, key, value);
+  for (const [key, value] of Object.entries(environment)) setEnvValue(env, key, value, platform);
   if (offline) setEnvValue(env, PI_OFFLINE_ENV, "1", platform);
   else deleteEnvValue(env, PI_OFFLINE_ENV, platform);
   setEnvValue(env, PI_SUBAGENT_CHILD_ENV, "1", platform);
+  setEnvValue(env, PI_SUBAGENT_CHILD_KIND_ENV, kind, platform);
   return env;
 }

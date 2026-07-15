@@ -3,111 +3,101 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
-import type { AgentConfig } from "../agents.js";
 import { processPiJsonLine } from "../child-events/index.js";
 import { getChildProgressText } from "../child-events/progress.js";
-import type { SubagentConfig } from "../config.js";
-import { emptyUsage, normalizeCompletedResult, type SubagentDetails, type SubagentResult } from "../core/types.js";
+import {
+  type ChildKind,
+  type ChildResult,
+  normalizeCompletedResult,
+} from "../core/types.js";
 import { buildChildEnv } from "./env.js";
 
 const isWindows = process.platform === "win32";
 const SIGKILL_TIMEOUT_MS = 5000;
 
-type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 export type ContextWindowResolver = (provider?: string, model?: string) => number | undefined;
 
-export interface RunSubagentOptions {
+export interface ChildActivation {
+  command: string;
+  args: string[];
+}
+
+export interface ChildResources {
+  systemPromptPath?: string;
+  sessionPath?: string;
+  scratchDir?: string;
+}
+
+export interface RunChildOptions<TResult extends ChildResult, TDetails> {
+  kind: ChildKind;
   cwd: string;
-  agent: AgentConfig;
-  task: string;
-  childCwd?: string;
-  config?: SubagentConfig;
+  result: TResult;
+  buildArgs: (resources: ChildResources) => string[];
+  systemPrompt?: string;
+  writeSessionSnapshot?: (filePath: string) => boolean;
+  scratchParent?: string;
+  environment?: Record<string, string> | ((resources: ChildResources) => Record<string, string>);
+  activation?: ChildActivation | null;
+  offline?: boolean;
   signal?: AbortSignal;
-  onUpdate?: OnUpdateCallback;
-  makeDetails: (results: SubagentResult[]) => SubagentDetails;
+  onUpdate?: (partial: AgentToolResult<TDetails>) => void;
+  makeDetails: (results: TResult[]) => TDetails;
   resolveContextWindow?: ContextWindowResolver;
 }
 
-export function resolvePiSpawn(): { command: string; prefixArgs: string[] } {
-  const configured = process.env.PI_SUBAGENT_PI_COMMAND?.trim();
-  return { command: configured || "pi", prefixArgs: [] };
+export function resolvePiSpawn(
+  cwd = process.cwd(),
+  activation: ChildActivation | null = null,
+): { command: string; prefixArgs: string[] } {
+  const piCommand = process.env.PI_SUBAGENT_PI_COMMAND?.trim() || "pi";
+  if (!activation) return { command: piCommand, prefixArgs: [] };
+  return {
+    command: activation.command,
+    prefixArgs: [...activation.args.map((arg) => arg.replaceAll("{cwd}", cwd)), piCommand],
+  };
 }
 
-function parseModel(model: string | undefined): { provider?: string; id?: string } {
-  const trimmed = model?.trim();
-  if (!trimmed) return {};
-  const slashIndex = trimmed.indexOf("/");
-  if (slashIndex > 0 && slashIndex < trimmed.length - 1) {
-    return { provider: trimmed.slice(0, slashIndex), id: trimmed.slice(slashIndex + 1) };
-  }
-  return { id: trimmed };
+function createTempRoot(kind: ChildKind): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), `pi-subagent-${kind}-`));
 }
 
-async function writePromptToTempFile(agentName: string, prompt: string): Promise<{ dir: string; filePath: string }> {
-  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "pi-subagent-"));
-  const safeName = agentName.replace(/[^\w.-]+/g, "_");
-  const filePath = path.join(dir, `prompt-${safeName}.md`);
-  await fs.promises.writeFile(filePath, prompt, { encoding: "utf-8", mode: 0o600 });
-  return { dir, filePath };
+function createScratch(parent: string): string {
+  fs.mkdirSync(parent, { recursive: true, mode: 0o700 });
+  return fs.mkdtempSync(path.join(parent, "pi-subagent-scratch-"));
 }
 
-function cleanupTempDir(dir: string | null): void {
+function cleanupTempDir(dir: string | undefined): void {
   if (!dir) return;
   try {
     fs.rmSync(dir, { recursive: true, force: true });
   } catch {
-    /* ignore */
+    // Cleanup is best effort after the child has settled.
   }
 }
 
-export function buildPiArgs(agent: AgentConfig, task: string, promptPath: string | undefined, config?: SubagentConfig): string[] {
-  const extensions = config ? config.extensions : [];
-  const configuredTools = config && Object.prototype.hasOwnProperty.call(config, "tools") ? config.tools : undefined;
-  const toolAllowlist = configuredTools === undefined ? agent.tools.join(",") : configuredTools;
-  const args = [
-    "--mode",
-    "json",
-    "-p",
-    "--no-session",
-    "--no-skills",
-    "--no-prompt-templates",
-  ];
-
-  if (extensions !== null) args.push("--no-extensions");
-
-  if (toolAllowlist !== null) {
-    if (toolAllowlist === "") args.push("--no-tools");
-    else args.push("--tools", toolAllowlist);
-  }
-
-  if (agent.model) args.push("--model", agent.model);
-  if (agent.thinking) args.push("--thinking", agent.thinking);
-  if (promptPath) args.push("--append-system-prompt", promptPath);
-  if (extensions !== null) {
-    for (const extension of extensions) args.push("--extension", extension);
-  }
-  args.push(`Task: ${task}`);
-  return args;
+function writePrivateFile(filePath: string, content: string): void {
+  fs.writeFileSync(filePath, content, { encoding: "utf-8", mode: 0o600 });
 }
 
-function createInitialResult(agent: AgentConfig, task: string): SubagentResult {
-  const parsedModel = parseModel(agent.model);
-  return {
-    agent: agent.name,
-    agentSource: agent.source,
-    task,
-    exitCode: -1,
-    messages: [],
-    stderr: "",
-    usage: emptyUsage(),
-    provider: parsedModel.provider,
-    model: parsedModel.id,
-  };
-}
-
-export async function runSubagent(opts: RunSubagentOptions): Promise<SubagentResult> {
-  const { cwd, agent, task, childCwd, config, signal, onUpdate, makeDetails, resolveContextWindow } = opts;
-  const result = createInitialResult(agent, task);
+export async function runChild<TResult extends ChildResult, TDetails>(
+  options: RunChildOptions<TResult, TDetails>,
+): Promise<TResult> {
+  const {
+    kind,
+    cwd,
+    result,
+    buildArgs,
+    systemPrompt,
+    writeSessionSnapshot,
+    scratchParent,
+    environment = {},
+    activation = null,
+    offline = true,
+    signal,
+    onUpdate,
+    makeDetails,
+    resolveContextWindow,
+  } = options;
 
   const enrichContextWindow = () => {
     if (result.usage.contextWindow || !resolveContextWindow) return;
@@ -125,30 +115,60 @@ export async function runSubagent(opts: RunSubagentOptions): Promise<SubagentRes
     });
   };
 
-  let tmpPromptDir: string | null = null;
-  let tmpPromptPath: string | undefined;
+  const failBeforeSpawn = (message: string): TResult => {
+    result.exitCode = signal?.aborted ? 130 : 1;
+    result.stderr = message;
+    result.stopReason = signal?.aborted ? "aborted" : "error";
+    result.errorMessage = message;
+    return result;
+  };
+
+  let tempRoot: string | undefined;
+  let scratchDir: string | undefined;
 
   try {
-    if (agent.systemPrompt.trim()) {
-      const tmp = await writePromptToTempFile(agent.name, agent.systemPrompt);
-      tmpPromptDir = tmp.dir;
-      tmpPromptPath = tmp.filePath;
+    const needsTempRoot = Boolean(systemPrompt?.trim() || writeSessionSnapshot);
+    if (needsTempRoot) tempRoot = createTempRoot(kind);
+
+    const resources: ChildResources = {};
+    if (systemPrompt?.trim() && tempRoot) {
+      resources.systemPromptPath = path.join(tempRoot, "system-prompt.md");
+      writePrivateFile(resources.systemPromptPath, systemPrompt);
+    }
+    if (writeSessionSnapshot && tempRoot) {
+      resources.sessionPath = path.join(tempRoot, "session.jsonl");
+      try {
+        if (!writeSessionSnapshot(resources.sessionPath)) {
+          return failBeforeSpawn("Cannot fork: failed to snapshot current session context.");
+        }
+      } catch (error) {
+        return failBeforeSpawn(error instanceof Error ? error.message : String(error));
+      }
+    }
+    if (scratchParent) {
+      scratchDir = createScratch(scratchParent);
+      resources.scratchDir = scratchDir;
     }
 
-    const piArgs = buildPiArgs(agent, task, tmpPromptPath, config);
+    const args = buildArgs(resources);
     let wasAborted = false;
-
     const exitCode = await new Promise<number>((resolve) => {
-      const { command, prefixArgs } = resolvePiSpawn();
-      const proc = spawn(command, [...prefixArgs, ...piArgs], {
-        cwd: childCwd ?? cwd,
+      const { command, prefixArgs } = resolvePiSpawn(cwd, activation);
+      const proc = spawn(command, [...prefixArgs, ...args], {
+        cwd,
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
-        env: buildChildEnv(config?.environment, process.env, process.platform, config?.offline ?? true),
+        env: buildChildEnv(
+          typeof environment === "function" ? environment(resources) : environment,
+          process.env,
+          process.platform,
+          offline,
+          kind,
+        ),
       });
 
       proc.stdin.on("error", () => {
-        /* ignore broken pipe on fast exits */
+        // Ignore broken pipes when the child exits before reading stdin.
       });
       proc.stdin.end();
 
@@ -165,7 +185,6 @@ export async function runSubagent(opts: RunSubagentOptions): Promise<SubagentRes
           }
           return;
         }
-
         proc.kill("SIGTERM");
         const sigkillTimer = setTimeout(() => {
           if (!didClose) proc.kill("SIGKILL");
@@ -183,7 +202,6 @@ export async function runSubagent(opts: RunSubagentOptions): Promise<SubagentRes
       const flushLine = (line: string) => {
         if (processPiJsonLine(line, result)) emitUpdate();
       };
-
       const flushBufferedLines = (text: string) => {
         for (const line of text.split(/\r?\n/)) {
           if (line.trim()) flushLine(line);
@@ -196,17 +214,14 @@ export async function runSubagent(opts: RunSubagentOptions): Promise<SubagentRes
         buffer = lines.pop() || "";
         for (const line of lines) flushLine(line);
       });
-
       proc.stderr.on("data", (chunk: Buffer) => {
         result.stderr += chunk.toString();
       });
-
       proc.on("close", (code) => {
         didClose = true;
         if (buffer.trim()) flushBufferedLines(buffer);
         finish(code ?? 0);
       });
-
       proc.on("error", (error) => {
         if (!result.stderr.trim()) result.stderr = error.message;
         finish(1);
@@ -225,8 +240,9 @@ export async function runSubagent(opts: RunSubagentOptions): Promise<SubagentRes
 
     result.exitCode = exitCode;
     enrichContextWindow();
-    return normalizeCompletedResult(result, wasAborted);
+    return normalizeCompletedResult(result, wasAborted, kind);
   } finally {
-    cleanupTempDir(tmpPromptDir);
+    cleanupTempDir(tempRoot);
+    cleanupTempDir(scratchDir);
   }
 }

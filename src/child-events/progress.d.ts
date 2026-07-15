@@ -1,3 +1,3 @@
-import type { SubagentResult } from "../core/types.js";
+import type { ChildResult } from "../core/types.js";
 
-export function getChildProgressText(result: Partial<SubagentResult> | undefined): string;
+export function getChildProgressText(result: Partial<ChildResult> | undefined): string;
