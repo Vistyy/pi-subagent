@@ -2,6 +2,10 @@
 
 Pi package for focused forks and constrained named subagents.
 
+This documentation describes `pi-subagent` v0.3.0.
+
+## Tools
+
 The package registers two tools:
 
 ```text
@@ -9,19 +13,27 @@ fork({ task, effort? })
 subagent({ agent, task })
 ```
 
-Each call starts exactly one child Pi process.
-Use separate tool calls when independent children should run in parallel.
-Pi executes those sibling tool calls in parallel.
+Each tool call starts exactly one child Pi process.
+Both tools use Pi's parallel execution mode.
+Run independent children as separate `fork` or `subagent` calls so Pi can execute them concurrently.
 
 The package does not expose batch, chain, queue, previous-output, per-call working-directory, or nested-delegation interfaces.
 
-## Install locally
+## Install
+
+Install the v0.3.0 release from GitHub:
+
+```bash
+pi install git:github.com/Vistyy/pi-subagent@v0.3.0
+```
+
+Install a local development checkout:
 
 ```bash
 pi install /home/syzom/projects/pi-extensions/pi-subagent
 ```
 
-For one-off testing:
+Run a local checkout without installing it:
 
 ```bash
 pi -e /home/syzom/projects/pi-extensions/pi-subagent
@@ -39,8 +51,8 @@ Fork starts from a filtered snapshot of the current active session context and r
 ```
 
 `effort` is optional and accepts `fast`, `balanced`, or `deep`.
-The code default is `balanced`.
-Settings may select another default.
+The built-in default is `balanced`.
+`pi-subagent.fork.defaultEffort` can override that default.
 
 - `fast` inspects the minimum evidence needed for one reliable result.
 - `balanced` connects directly relevant evidence, reasoning, trade-offs, and uncertainty.
@@ -92,6 +104,17 @@ thinking: medium
 The Markdown body is the identity system prompt.
 `tools` is required so the identity remains the default authority for its child tools.
 
+## Tool-call display
+
+Collapsed results show status and up to the three most recent child activities.
+When more activities exist, an earlier-activity count shows how many were omitted.
+
+The collapsed per-child footer shows elapsed duration and, when available, turns, input and output tokens, cache reads and writes, cost, context usage, provider, and model.
+Named identity and source provenance remain available in the expanded result without repeating them in the collapsed completion line.
+
+Expanded results show the task, complete stored activity list, final output, errors, and the same per-child footer.
+The package does not add an aggregate session-cost footer.
+
 ## Configuration
 
 Use one `pi-subagent` namespace with separate Fork and Subagent policies.
@@ -142,8 +165,11 @@ Use one `pi-subagent` namespace with separate Fork and Subagent policies.
 ```
 
 Global settings load from `~/.pi/agent/settings.json`.
-Trusted project settings load from `.pi/settings.json` and override global values.
-Relative extension paths resolve from the settings file directory.
+Project settings and project identities load from `.pi/` only when the project is trusted.
+Trusted project settings override global values.
+
+Relative extension paths resolve from the settings file containing them.
+Paths beginning with `~/` resolve from the user's home directory.
 
 Fork `tools` is tri-state:
 
@@ -169,8 +195,11 @@ Fork `activation` optionally wraps child startup and replaces `{cwd}` with the c
 
 ## Optional Fork sandbox
 
+The optional sandbox is Fork-specific and is not automatically applied to named Subagent processes.
 Add `sandbox.ts` to `pi-subagent.fork.extensions` to guard exploratory Fork children.
-The hook removes `edit` and `write` and wraps Bash with Bubblewrap.
+
+The extension blocks `edit` and `write` child tool calls.
+It wraps child Bash commands with Bubblewrap.
 
 The workspace is read-only.
 A per-Fork temporary directory is writable and visible to both sandboxed Bash and host-mediated tools.
@@ -181,8 +210,17 @@ Host-mediated tools such as `web_search`, `web_fetch`, and `web_content_get` rem
 
 This sandbox is a workflow guardrail for ordinary exploratory work, not a hostile-code security boundary.
 
+## Migration from separate packages
+
+Remove the standalone `pi-fork` package registration.
+Move its settings under `pi-subagent.fork`.
+Move the previous top-level `pi-subagent` child settings under `pi-subagent.subagent`.
+Reload Pi after changing package registration or settings.
+
+The `pi-fork` GitHub repository is archived.
+
 ## Shared implementation
 
-Fork and Subagent use one child-process runner for process spawning, environment handling, cancellation, JSON event parsing, progress, result normalization, usage capture, and cleanup.
+Fork and Subagent use one child-process runner for process spawning, environment handling, cancellation, JSON event parsing, progress, result normalization, duration tracking, usage capture, and cleanup.
 Fork adds a filtered session snapshot and effort prompt.
 Subagent adds a named identity prompt and identity policy.
