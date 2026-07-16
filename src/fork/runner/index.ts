@@ -84,6 +84,7 @@ export function runFork(options: RunForkOptions): Promise<ForkResult> {
     messages: [],
     stderr: "",
     usage: emptyUsage(),
+    thinking: effort.profile?.thinking,
   };
 
   return runChild({

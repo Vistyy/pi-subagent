@@ -47,6 +47,7 @@ function forkResult(overrides: Partial<ForkResult> = {}): ForkResult {
     durationMs: 18_000,
     provider: "openai-codex",
     model: "gpt-5.6-luna",
+    thinking: "low",
     stopReason: "stop",
     sawAgentEnd: true,
     activities: [
@@ -69,7 +70,7 @@ describe("collapsed delegation rendering", () => {
     expect(text).not.toContain("✓ fork completed");
     expect(text).toContain("✓ thinking");
     expect(text).toContain("✓ read package.json");
-    expect(text).toContain("18s · 4 turns ↑11k ↓391 R9.2k $0.0144 1.5%/372k (openai-codex) gpt-5.6-luna");
+    expect(text).toContain("18s · 4 turns ↑11k ↓391 R9.2k $0.0144 1.5%/372k (openai-codex) gpt-5.6-luna · low");
     expect(text).not.toContain("fork smoke passed");
     expect(text).not.toContain("expand");
   });
@@ -79,6 +80,7 @@ describe("collapsed delegation rendering", () => {
       ...forkResult(),
       agent: "interface-designer",
       agentSource: "user",
+      thinking: "high",
       activities: [],
       messages: [{
         role: "assistant",
@@ -109,6 +111,7 @@ describe("collapsed delegation rendering", () => {
     expect(text).not.toContain("user");
     expect(text).toContain("subagent smoke passed");
     expect(text).toContain("18s · 4 turns");
+    expect(text).toContain("(openai-codex) gpt-5.6-luna · high");
   });
 
   it("shows only the latest activity while running", () => {

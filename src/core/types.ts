@@ -55,6 +55,7 @@ export interface ChildResult {
   durationMs?: number;
   provider?: string;
   model?: string;
+  thinking?: ThinkingLevel;
   stopReason?: string;
   errorMessage?: string;
   sawAgentEnd?: boolean;

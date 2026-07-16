@@ -57,6 +57,7 @@ function fmtUsage(result: ChildResult): string {
   if (provider && model) parts.push(`(${provider}) ${model}`);
   else if (provider) parts.push(`(${provider})`);
   else if (model) parts.push(model);
+  if (result.thinking) parts.push(`· ${result.thinking}`);
 
   const elapsed = result.exitCode === -1 && result.startedAt
     ? Math.max(result.durationMs ?? 0, Date.now() - result.startedAt)

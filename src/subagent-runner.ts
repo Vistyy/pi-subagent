@@ -63,6 +63,7 @@ export function runSubagent(options: RunSubagentOptions): Promise<SubagentResult
     usage: emptyUsage(),
     provider: parsedModel.provider,
     model: parsedModel.id,
+    thinking: agent.thinking,
   };
 
   return runChild({

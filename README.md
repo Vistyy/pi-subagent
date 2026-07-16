@@ -2,7 +2,7 @@
 
 Pi package for focused forks and constrained named subagents.
 
-This documentation describes `pi-subagent` v0.3.0.
+This documentation describes `pi-subagent` v0.3.1.
 
 ## Tools
 
@@ -21,10 +21,10 @@ The package does not expose batch, chain, queue, previous-output, per-call worki
 
 ## Install
 
-Install the v0.3.0 release from GitHub:
+Install the v0.3.1 release from GitHub:
 
 ```bash
-pi install git:github.com/Vistyy/pi-subagent@v0.3.0
+pi install git:github.com/Vistyy/pi-subagent@v0.3.1
 ```
 
 Install a local development checkout:
@@ -109,7 +109,7 @@ The Markdown body is the identity system prompt.
 Collapsed results show status and up to the three most recent child activities.
 When more activities exist, an earlier-activity count shows how many were omitted.
 
-The collapsed per-child footer shows elapsed duration and, when available, turns, input and output tokens, cache reads and writes, cost, context usage, provider, and model.
+The collapsed per-child footer shows elapsed duration and, when available, turns, input and output tokens, cache reads and writes, cost, context usage, provider, model, and thinking level.
 Named identity and source provenance remain available in the expanded result without repeating them in the collapsed completion line.
 
 Expanded results show the task, complete stored activity list, final output, errors, and the same per-child footer.

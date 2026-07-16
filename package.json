@@ -1,6 +1,6 @@
 {
   "name": "pi-subagent",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Pi package for focused forks and constrained named subagents.",
   "private": true,
   "type": "module",
