@@ -2,7 +2,7 @@
 
 Pi package for focused forks and constrained named subagents.
 
-This documentation describes `pi-subagent` v0.3.1.
+This documentation describes `pi-subagent` v0.4.0.
 
 ## Tools
 
@@ -24,7 +24,7 @@ The package does not expose batch, chain, queue, previous-output, per-call worki
 Install the v0.3.1 release from GitHub:
 
 ```bash
-pi install git:github.com/Vistyy/pi-subagent@v0.3.1
+pi install git:github.com/Vistyy/pi-subagent@v0.4.0
 ```
 
 Install a local development checkout:
