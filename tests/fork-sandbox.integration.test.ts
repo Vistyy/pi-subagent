@@ -42,19 +42,19 @@ describe.skipIf(!hasBwrap)("sandbox integration", () => {
   });
 
   it("exposes normal home configuration while keeping home writes temporary", () => {
-    const marker = `.pi-subagent-overlay-${process.pid}`;
-    const markerPath = join(homedir(), marker);
+    const homeDir = mkdtempSync(join(homedir(), ".pi-subagent-overlay-"));
+    const markerPath = join(homeDir, "marker");
 
     try {
-      const out = runInSandbox(`touch "$HOME/${marker}" && printf %s "$HOME"`, {
+      const out = runInSandbox("touch \"$HOME/marker\" && printf %s \"$HOME\"", {
         homeAccess: "overlay",
-        homeDir: homedir(),
+        homeDir,
       });
 
-      expect(out).toBe(homedir());
+      expect(out).toBe(homeDir);
       expect(() => readFileSync(markerPath)).toThrow();
     } finally {
-      rmSync(markerPath, { force: true });
+      rmSync(homeDir, { recursive: true, force: true });
     }
   });
 
