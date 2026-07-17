@@ -21,7 +21,7 @@ The package does not expose batch, chain, queue, previous-output, per-call worki
 
 ## Install
 
-Install the v0.3.1 release from GitHub:
+Install the v0.4.0 release from GitHub:
 
 ```bash
 pi install git:github.com/Vistyy/pi-subagent@v0.4.0
