@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildSandboxedCommand, type ForkSandboxRuntimeConfig } from "../src/fork/sandbox.js";
@@ -39,6 +39,23 @@ describe.skipIf(!hasBwrap)("sandbox integration", () => {
     const out = runInSandbox("printenv SHOULD_NOT_LEAK_TO_SANDBOX || true");
 
     expect(out).toBe("");
+  });
+
+  it("exposes normal home configuration while keeping home writes temporary", () => {
+    const marker = `.pi-subagent-overlay-${process.pid}`;
+    const markerPath = join(homedir(), marker);
+
+    try {
+      const out = runInSandbox(`touch "$HOME/${marker}" && printf %s "$HOME"`, {
+        homeAccess: "overlay",
+        homeDir: homedir(),
+      });
+
+      expect(out).toBe(homedir());
+      expect(() => readFileSync(markerPath)).toThrow();
+    } finally {
+      rmSync(markerPath, { force: true });
+    }
   });
 
   it("keeps advertised tmp files visible across bash and host tools", () => {

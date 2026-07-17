@@ -134,6 +134,7 @@ Use one `pi-subagent` namespace with separate Fork and Subagent policies.
       },
       "sandbox": {
         "bashNetwork": false,
+        "homeAccess": "isolated",
         "tmpDir": "/tmp"
       },
       "defaultEffort": "balanced",
@@ -204,6 +205,11 @@ It wraps child Bash commands with Bubblewrap.
 The workspace is read-only.
 A per-Fork temporary directory is writable and visible to both sandboxed Bash and host-mediated tools.
 Normal system and user command paths remain visible read-only, including user-installed tools under `/home` and Nix profile paths.
+
+`sandbox.homeAccess` controls the home directory seen by sandboxed Bash.
+The default `"isolated"` mode uses an empty temporary home.
+The `"overlay"` mode exposes the user's normal home and keeps home writes in a temporary overlay that disappears with the Fork.
+Overlay mode lets existing CLI configuration and credentials work normally, so Forks receive the same remote-account authority as the user.
 
 `sandbox.bashNetwork` controls Bash network access independently from `offline`.
 Host-mediated tools such as `web_search`, `web_fetch`, and `web_content_get` remain usable when Bash network access is disabled.

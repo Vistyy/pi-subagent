@@ -31,6 +31,18 @@ describe("sandbox command wrapper", () => {
     ]));
   });
 
+  it("can expose the real home through a temporary writable overlay", () => {
+    const args = buildBwrapArgs({ homeAccess: "overlay", homeDir: "/home/example" });
+
+    expect(args).toEqual(expect.arrayContaining([
+      "--overlay-src", "/home/example",
+      "--tmp-overlay", "/home/example",
+      "--setenv", "HOME", "/home/example",
+    ]));
+    expect(args).not.toEqual(expect.arrayContaining(["--dir", "/tmp/home"]));
+    expect(args).not.toEqual(expect.arrayContaining(["--setenv", "HOME", "/tmp/home"]));
+  });
+
   it("clears inherited env and binds only minimal /etc files by default", () => {
     const args = buildBwrapArgs();
 

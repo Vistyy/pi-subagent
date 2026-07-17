@@ -32,6 +32,9 @@ const CA_BUNDLE_ENV_KEYS = [
 export interface ForkSandboxRuntimeConfig extends ForkSandboxConfig {
   /** Host temp directory bound to tmpDir for the lifetime of one fork. */
   hostTmpDir?: string;
+
+  /** Real user home exposed when homeAccess is overlay. */
+  homeDir?: string;
 }
 
 function defaultCaBundleCandidates(): string[] {
@@ -84,7 +87,7 @@ function normalizeSandboxTmpDir(value: string | undefined): string | undefined {
   return isSandboxTmpDir(tmpDir) ? tmpDir : undefined;
 }
 
-function resolveHostTmpDir(value: string | undefined): string | undefined {
+function resolveHostPath(value: string | undefined): string | undefined {
   if (!value || !path.isAbsolute(value)) return undefined;
   try {
     return existsSync(value) ? realpathSync(value) : undefined;
@@ -99,8 +102,9 @@ function resolveSandboxConfig(overrides: Partial<ForkSandboxRuntimeConfig> = {})
 
 function runtimeSandboxConfig(baseConfig: ForkSandboxConfig): ForkSandboxRuntimeConfig {
   const tmpDir = normalizeSandboxTmpDir(process.env[PI_SUBAGENT_FORK_SANDBOX_TMPDIR_ENV]) || baseConfig.tmpDir;
-  const hostTmpDir = resolveHostTmpDir(process.env[PI_SUBAGENT_FORK_SANDBOX_HOST_TMPDIR_ENV]);
-  return { ...baseConfig, tmpDir, hostTmpDir };
+  const hostTmpDir = resolveHostPath(process.env[PI_SUBAGENT_FORK_SANDBOX_HOST_TMPDIR_ENV]);
+  const homeDir = baseConfig.homeAccess === "overlay" ? resolveHostPath(process.env.HOME) : undefined;
+  return { ...baseConfig, tmpDir, hostTmpDir, homeDir };
 }
 
 function dirArgsForPath(dir: string): string[] {
@@ -122,7 +126,7 @@ function tmpDirArgs(tmpDir: string): string[] {
 }
 
 function writableTmpMountArgs(config: ForkSandboxRuntimeConfig): string[] {
-  const hostTmpDir = resolveHostTmpDir(config.hostTmpDir);
+  const hostTmpDir = resolveHostPath(config.hostTmpDir);
   if (!hostTmpDir) {
     return [
       "--tmpfs", "/tmp",
@@ -148,6 +152,7 @@ function writableTmpMountArgs(config: ForkSandboxRuntimeConfig): string[] {
 export function buildBwrapArgs(sandboxConfig: Partial<ForkSandboxRuntimeConfig> = {}): string[] {
   const config = resolveSandboxConfig(sandboxConfig);
   const caBundlePath = resolveCaBundlePath();
+  const homeDir = config.homeAccess === "overlay" ? config.homeDir : undefined;
   return [
     "--die-with-parent",
     "--unshare-all",
@@ -177,16 +182,17 @@ export function buildBwrapArgs(sandboxConfig: Partial<ForkSandboxRuntimeConfig> 
         ]
       : []),
     "--ro-bind-try", "/run/current-system", "/run/current-system",
+    ...(homeDir ? ["--overlay-src", homeDir, "--tmp-overlay", homeDir] : []),
     "--proc", "/proc",
     "--dev", "/dev",
     ...writableTmpMountArgs(config),
     ...caBundleBindArgs(caBundlePath),
-    ...(config.tmpDir === "/tmp/home" ? [] : ["--dir", "/tmp/home"]),
+    ...(homeDir || config.tmpDir === "/tmp/home" ? [] : ["--dir", "/tmp/home"]),
     "--ro-bind", "$PWD", "$PWD",
     "--chdir", "$PWD",
     "--clearenv",
     ...caBundleEnvArgs(caBundlePath),
-    "--setenv", "HOME", "/tmp/home",
+    "--setenv", "HOME", homeDir || "/tmp/home",
     "--setenv", "TMPDIR", config.tmpDir,
     "--setenv", "TERM", "${TERM:-xterm-256color}",
     "--setenv", "LANG", "${LANG:-C.UTF-8}",
