@@ -168,6 +168,46 @@ console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
     expect(updates.join("\n")).toContain("final design");
   });
 
+  it("streams timer updates while child Pi is silent", async () => {
+    const dir = makeTempDir();
+    process.env.PI_SUBAGENT_PI_COMMAND = writeExecutable(
+      dir,
+      `
+const message = {
+  role: "assistant",
+  provider: "openai-codex",
+  model: "gpt-5.4-mini",
+  content: [{ type: "text", text: "final design" }],
+  stopReason: "end"
+};
+setTimeout(() => {
+  console.log(JSON.stringify({ type: "message_end", message }));
+  console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
+}, 2200);
+`,
+    );
+
+    const updates: Array<{ text: string; durationMs: number; exitCode: number }> = [];
+    await runSubagent({
+      cwd: dir,
+      agent: agent(),
+      task: "Design a seam.",
+      config: { extensions: [], environment: {}, offline: true },
+      makeDetails: (results) => ({ results }),
+      onUpdate: (partial) => {
+        const text = partial.content.find((part) => part.type === "text")?.text;
+        const update = partial.details?.results[0];
+        if (text && update) updates.push({ text, durationMs: update.durationMs ?? 0, exitCode: update.exitCode });
+      },
+    });
+
+    expect(updates.some((update) => !update.text.includes("final design") && update.durationMs >= 900 && update.exitCode === -1)).toBe(true);
+
+    const completedUpdateCount = updates.length;
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(updates).toHaveLength(completedUpdateCount);
+  }, 7000);
+
   it("overlays configured child environment", async () => {
     const dir = makeTempDir();
     const argFile = path.join(dir, "args.json");

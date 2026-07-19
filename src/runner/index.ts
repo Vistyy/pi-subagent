@@ -216,6 +216,8 @@ export async function runChild<TResult extends ChildResult, TDetails>(
       let didClose = false;
       let settled = false;
       let abortHandler: (() => void) | undefined;
+      const updateTimer = onUpdate ? setInterval(emitUpdate, 1000) : undefined;
+      updateTimer?.unref();
 
       const terminateChild = () => {
         if (isWindows) {
@@ -235,6 +237,7 @@ export async function runChild<TResult extends ChildResult, TDetails>(
       const finish = (code: number) => {
         if (settled) return;
         settled = true;
+        if (updateTimer) clearInterval(updateTimer);
         if (signal && abortHandler) signal.removeEventListener("abort", abortHandler);
         resolve(code);
       };
