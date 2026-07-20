@@ -2,7 +2,7 @@
 
 Pi package for focused forks and constrained named subagents.
 
-This documentation describes `pi-subagent` v0.4.0.
+This documentation describes `pi-subagent` v0.4.1.
 
 ## Tools
 
@@ -21,10 +21,10 @@ The package does not expose batch, chain, queue, previous-output, per-call worki
 
 ## Install
 
-Install the v0.4.0 release from GitHub:
+Install the v0.4.1 release from GitHub:
 
 ```bash
-pi install git:github.com/Vistyy/pi-subagent@v0.4.0
+pi install git:github.com/Vistyy/pi-subagent@v0.4.1
 ```
 
 Install a local development checkout:
@@ -202,7 +202,9 @@ Add `sandbox.ts` to `pi-subagent.fork.extensions` to guard exploratory Fork chil
 The extension blocks `edit` and `write` child tool calls.
 It wraps child Bash commands with Bubblewrap.
 
-The workspace is read-only.
+The workspace is read-only by default.
+Set `sandbox.workspaceAccess` to `"overlay"` to give each Bash invocation a temporary writable workspace overlay.
+Overlay writes are visible only within that Bash invocation and disappear when it exits.
 A per-Fork temporary directory is writable and visible to both sandboxed Bash and host-mediated tools.
 Normal system and user command paths remain visible read-only, including user-installed tools under `/home` and Nix profile paths.
 

@@ -36,6 +36,9 @@ export interface ForkSandboxConfig {
   /** Home visibility inside sandboxed fork Bash. Overlay writes are temporary. */
   homeAccess: "isolated" | "overlay";
 
+  /** Workspace visibility inside sandboxed fork Bash. Overlay writes are temporary per Bash invocation. */
+  workspaceAccess: "isolated" | "overlay";
+
   /** Writable TMPDIR inside sandboxed fork Bash. Must be under /tmp or /var/tmp. */
   tmpDir: string;
 }
@@ -88,6 +91,7 @@ export const DEFAULT_SUBAGENT_CONFIG: SubagentConfig = {
 export const DEFAULT_SANDBOX_CONFIG: ForkSandboxConfig = {
   bashNetwork: false,
   homeAccess: "isolated",
+  workspaceAccess: "isolated",
   tmpDir: "/tmp",
 };
 
@@ -254,6 +258,9 @@ function parseSandbox(raw: unknown): Partial<ForkSandboxConfig> | undefined {
   const tmpDir = parseSandboxTmpDir(config.tmpDir);
   if (typeof config.bashNetwork === "boolean") sandbox.bashNetwork = config.bashNetwork;
   if (config.homeAccess === "isolated" || config.homeAccess === "overlay") sandbox.homeAccess = config.homeAccess;
+  if (config.workspaceAccess === "isolated" || config.workspaceAccess === "overlay") {
+    sandbox.workspaceAccess = config.workspaceAccess;
+  }
   if (tmpDir !== undefined) sandbox.tmpDir = tmpDir;
   return Object.keys(sandbox).length > 0 ? sandbox : undefined;
 }

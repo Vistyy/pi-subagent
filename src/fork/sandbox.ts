@@ -189,6 +189,7 @@ export function buildBwrapArgs(sandboxConfig: Partial<ForkSandboxRuntimeConfig> 
     ...caBundleBindArgs(caBundlePath),
     ...(homeDir || config.tmpDir === "/tmp/home" ? [] : ["--dir", "/tmp/home"]),
     "--ro-bind", "$PWD", "$PWD",
+    ...(config.workspaceAccess === "overlay" ? ["--overlay-src", "$PWD", "--tmp-overlay", "$PWD"] : []),
     "--chdir", "$PWD",
     "--clearenv",
     ...caBundleEnvArgs(caBundlePath),

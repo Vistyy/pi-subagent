@@ -91,7 +91,7 @@ describe("pi-subagent configuration", () => {
       "pi-subagent": {
         fork: {
           environment: { A: "global", B: "global" },
-          sandbox: { bashNetwork: true, homeAccess: "overlay" },
+          sandbox: { bashNetwork: true, homeAccess: "overlay", workspaceAccess: "overlay" },
           effortProfiles: {
             fast: { provider: "openai-codex", id: "fast", thinking: "low" },
           },
@@ -115,7 +115,12 @@ describe("pi-subagent configuration", () => {
     const config = loadConfig(cwd, true);
 
     expect(config.fork.environment).toEqual({ A: "global", B: "project" });
-    expect(config.fork.sandbox).toEqual({ bashNetwork: true, homeAccess: "overlay", tmpDir: "/tmp/project" });
+    expect(config.fork.sandbox).toEqual({
+      bashNetwork: true,
+      homeAccess: "overlay",
+      workspaceAccess: "overlay",
+      tmpDir: "/tmp/project",
+    });
     expect(config.fork.effortProfiles).toEqual({
       fast: { provider: "openai-codex", id: "fast", thinking: "low" },
       deep: { provider: "openai-codex", id: "deep", thinking: "high" },

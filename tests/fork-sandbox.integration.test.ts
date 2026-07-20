@@ -35,6 +35,19 @@ describe.skipIf(!hasBwrap)("sandbox integration", () => {
     expect(() => runInSandbox("touch SHOULD_FAIL")).toThrow(/Read-only file system/);
   });
 
+  it("keeps workspace overlay writes visible during one command but off the host", () => {
+    const markerName = `.pi-subagent-workspace-overlay-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    try {
+      expect(runInSandbox(`printf marker > ${markerName} && cat ${markerName}`, {
+        workspaceAccess: "overlay",
+      })).toBe("marker");
+      expect(() => readFileSync(markerName)).toThrow();
+    } finally {
+      rmSync(markerName, { force: true });
+    }
+  });
+
   it("clears inherited environment", () => {
     const out = runInSandbox("printenv SHOULD_NOT_LEAK_TO_SANDBOX || true");
 

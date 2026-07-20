@@ -31,6 +31,19 @@ describe("sandbox command wrapper", () => {
     ]));
   });
 
+  it("can expose the workspace through a temporary writable overlay after its read-only bind", () => {
+    const args = buildBwrapArgs({ workspaceAccess: "overlay" });
+    const workspaceBind = args.indexOf("--ro-bind");
+    const overlaySource = args.indexOf("--overlay-src", workspaceBind);
+
+    expect(args.slice(overlaySource, overlaySource + 4)).toEqual([
+      "--overlay-src", "$PWD",
+      "--tmp-overlay", "$PWD",
+    ]);
+    expect(overlaySource).toBeGreaterThan(workspaceBind);
+    expect(args.indexOf("--chdir")).toBeGreaterThan(overlaySource);
+  });
+
   it("can expose the real home through a temporary writable overlay", () => {
     const args = buildBwrapArgs({ homeAccess: "overlay", homeDir: "/home/example" });
 
