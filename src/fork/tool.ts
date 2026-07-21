@@ -25,6 +25,8 @@ export const FORK_TOOL_TEXT = {
     "Command/path/file lookup is unknown repo fact.",
     "Do not inspect, grep, list, or read first to decide whether to fork.",
     "Parent tools are for edits, validation after fork, and final synthesis.",
+    "Reuse a completed report unless relevant evidence changed or the next question needs evidence the report does not contain.",
+    "Combine overlapping questions about the same evidence into one fork.",
     "Multiple independent areas → one fork per area.",
   ],
 } as const;
