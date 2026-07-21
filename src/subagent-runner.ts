@@ -1,6 +1,7 @@
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { AgentConfig } from "./agents.js";
 import type { SubagentConfig } from "./config.js";
+import { pathReportingRules } from "./core/path-reporting.js";
 import { emptyUsage, type SubagentDetails, type SubagentResult } from "./core/types.js";
 import { type ContextWindowResolver, runChild } from "./runner/index.js";
 
@@ -70,7 +71,7 @@ export function runSubagent(options: RunSubagentOptions): Promise<SubagentResult
     kind: "subagent",
     cwd,
     result,
-    systemPrompt: agent.systemPrompt,
+    systemPrompt: `${agent.systemPrompt}\n\n${pathReportingRules}`,
     buildArgs: ({ systemPromptPath }) => buildSubagentArgs(agent, task, systemPromptPath, config),
     environment: config.environment,
     offline: config.offline,

@@ -124,6 +124,42 @@ describe("buildSubagentArgs", () => {
 });
 
 describe("runSubagent", () => {
+  it("instructs the child to return verified absolute file paths", async () => {
+    const dir = makeTempDir();
+    const promptFile = path.join(dir, "system-prompt.txt");
+    process.env.PI_SUBAGENT_ARG_FILE = promptFile;
+    process.env.PI_SUBAGENT_PI_COMMAND = writeExecutable(
+      dir,
+      `
+const fs = require("node:fs");
+const promptFlag = process.argv.indexOf("--append-system-prompt");
+const systemPrompt = fs.readFileSync(process.argv[promptFlag + 1], "utf8");
+fs.writeFileSync(process.env.PI_SUBAGENT_ARG_FILE, systemPrompt);
+const message = {
+  role: "assistant",
+  provider: "openai-codex",
+  model: "gpt-5.4-mini",
+  content: [{ type: "text", text: "final design" }],
+  stopReason: "end"
+};
+console.log(JSON.stringify({ type: "message_end", message }));
+console.log(JSON.stringify({ type: "agent_end", messages: [message] }));
+`,
+    );
+
+    await runSubagent({
+      cwd: dir,
+      agent: agent(),
+      task: "Design a seam.",
+      config: { extensions: [], environment: {}, offline: true },
+      makeDetails: (results) => ({ results }),
+    });
+
+    const systemPrompt = fs.readFileSync(promptFile, "utf8");
+    expect(systemPrompt).toContain("Before citing a file, verify that it exists.");
+    expect(systemPrompt).toContain("Return the file's full absolute path exactly as it exists.");
+  });
+
   it("parses child Pi JSON events and streams progress", async () => {
     const dir = makeTempDir();
     const child = writeExecutable(

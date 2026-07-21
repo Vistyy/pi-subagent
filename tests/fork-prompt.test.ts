@@ -6,6 +6,8 @@ const commonContract = [
   "Investigate only what is relevant to the delegated task.",
   "Distinguish verified facts, inferences, and unknowns.",
   "Return a report the parent can act on.",
+  "Before citing a file, verify that it exists.",
+  "Return the file's full absolute path exactly as it exists.",
 ];
 
 describe("buildForkTaskPrompt", () => {

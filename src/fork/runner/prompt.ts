@@ -1,3 +1,4 @@
+import { pathReportingRules } from "../../core/path-reporting.js";
 import type { ForkEffort } from "../../core/types.js";
 
 export interface ForkPromptOptions {
@@ -27,6 +28,8 @@ Shared rules:
 - Ground claims in concrete evidence such as files, symbols, commands, config keys, outputs, or observed behavior.
 - Distinguish verified facts, inferences, and unknowns.
 - Return a report the parent can act on.
+
+${pathReportingRules}
 
 ${effortRules[effort]}
 `;
